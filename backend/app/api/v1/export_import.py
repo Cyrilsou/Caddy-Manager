@@ -5,8 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
 from app.database import get_db
+from app.security.rbac import require_permission
 from app.models.backend_server import BackendServer
 from app.models.domain import Domain
 from app.models.setting import Setting
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/export", tags=["export"])
 
 
 @router.get("")
-async def export_config(db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def export_config(db: AsyncSession = Depends(get_db), _: User = Depends(require_permission("settings.read"))):
     """Export all backends, domains, and settings as JSON for disaster recovery."""
     backends_result = await db.execute(select(BackendServer).order_by(BackendServer.name))
     domains_result = await db.execute(select(Domain).order_by(Domain.hostname))
@@ -59,7 +59,7 @@ async def export_config(db: AsyncSession = Depends(get_db), _: User = Depends(ge
 async def import_config(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_permission("settings.write")),
 ):
     """Import backends and domains from an exported JSON file."""
     if not user.is_superadmin:

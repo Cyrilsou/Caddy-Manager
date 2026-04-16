@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
 from app.database import get_db
+from app.security.rbac import require_permission
 from app.models.setting import Setting
 from app.models.user import User
 from app.schemas.setting import SettingResponse, SettingUpdate
@@ -15,7 +15,7 @@ MASKED_VALUE = "***"
 
 
 @router.get("", response_model=list[SettingResponse])
-async def list_settings(db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def list_settings(db: AsyncSession = Depends(get_db), _: User = Depends(require_permission("settings.read"))):
     result = await db.execute(select(Setting).order_by(Setting.key))
     settings_list = result.scalars().all()
     items = []
@@ -31,7 +31,7 @@ async def list_settings(db: AsyncSession = Depends(get_db), _: User = Depends(ge
 @router.put("/{key}", response_model=SettingResponse)
 async def update_setting(
     key: str, data: SettingUpdate, request: Request,
-    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db), user: User = Depends(require_permission("settings.write")),
 ):
     result = await db.execute(select(Setting).where(Setting.key == key))
     setting = result.scalar_one_or_none()

@@ -69,7 +69,11 @@ export function Sidebar() {
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">{username}</span>
           <button
-            onClick={() => { logout(); window.location.href = "/login"; }}
+            onClick={async () => {
+              try { await fetch("/api/v1/auth/logout", { method: "POST", credentials: "include" }); } catch {}
+              logout();
+              window.location.href = "/login";
+            }}
             className="text-muted-foreground hover:text-foreground"
             aria-label="Logout"
           >

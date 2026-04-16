@@ -6,15 +6,9 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str = "bearer"
+class LoginResponse(BaseModel):
+    message: str
     expires_in: int
-
-
-class RefreshRequest(BaseModel):
-    refresh_token: str
 
 
 class PasswordChangeRequest(BaseModel):
@@ -28,5 +22,6 @@ class UserResponse(BaseModel):
     email: str | None
     is_active: bool
     is_superadmin: bool
+    role: str
 
     model_config = {"from_attributes": True}

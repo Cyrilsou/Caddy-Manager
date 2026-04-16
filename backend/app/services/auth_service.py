@@ -84,7 +84,9 @@ async def authenticate_user(
     }
 
 
-async def refresh_access_token(db: AsyncSession, refresh_token_str: str) -> dict:
+async def refresh_access_token(
+    db: AsyncSession, refresh_token_str: str, token_blacklist=None,
+) -> dict:
     try:
         payload = decode_token(refresh_token_str)
     except Exception:
@@ -97,11 +99,29 @@ async def refresh_access_token(db: AsyncSession, refresh_token_str: str) -> dict
         user_id = int(payload["sub"])
     except (KeyError, ValueError, TypeError):
         raise ValueError("Invalid token payload")
+
+    old_jti = payload.get("jti")
+    old_exp = payload.get("exp", 0)
+
+    # Check if this refresh token was already revoked (replay detection)
+    if token_blacklist and old_jti:
+        if await token_blacklist.is_revoked(old_jti):
+            # Possible token theft — revoke ALL tokens for this user
+            await token_blacklist.revoke_all_for_user(user_id)
+            raise ValueError("Refresh token reuse detected, all sessions revoked")
+
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()
 
     if not user or not user.is_active:
         raise ValueError("User not found or inactive")
+
+    # Revoke the old refresh token so it can't be reused
+    if token_blacklist and old_jti:
+        import time
+        ttl = max(int(old_exp - time.time()), 0)
+        if ttl > 0:
+            await token_blacklist.revoke(old_jti, ttl)
 
     access_token = create_access_token(user.id, user.username)
     new_refresh_token = create_refresh_token(user.id)

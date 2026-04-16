@@ -1,38 +1,27 @@
 import { create } from "zustand";
 
 interface AuthState {
-  accessToken: string | null;
-  refreshToken: string | null;
   username: string | null;
   isAuthenticated: boolean;
-  login: (accessToken: string, refreshToken: string, username: string) => void;
+  login: (username: string) => void;
   logout: () => void;
-  setTokens: (accessToken: string, refreshToken: string) => void;
 }
 
+// Tokens are now in HttpOnly cookies (not accessible from JS).
+// We only track auth state and username in the store.
 export const useAuthStore = create<AuthState>((set) => ({
-  accessToken: localStorage.getItem("access_token"),
-  refreshToken: localStorage.getItem("refresh_token"),
   username: localStorage.getItem("username"),
-  isAuthenticated: !!localStorage.getItem("access_token"),
+  isAuthenticated: localStorage.getItem("is_authenticated") === "true",
 
-  login: (accessToken, refreshToken, username) => {
-    localStorage.setItem("access_token", accessToken);
-    localStorage.setItem("refresh_token", refreshToken);
+  login: (username) => {
     localStorage.setItem("username", username);
-    set({ accessToken, refreshToken, username, isAuthenticated: true });
+    localStorage.setItem("is_authenticated", "true");
+    set({ username, isAuthenticated: true });
   },
 
   logout: () => {
-    localStorage.removeItem("access_token");
-    localStorage.removeItem("refresh_token");
     localStorage.removeItem("username");
-    set({ accessToken: null, refreshToken: null, username: null, isAuthenticated: false });
-  },
-
-  setTokens: (accessToken, refreshToken) => {
-    localStorage.setItem("access_token", accessToken);
-    localStorage.setItem("refresh_token", refreshToken);
-    set({ accessToken, refreshToken });
+    localStorage.removeItem("is_authenticated");
+    set({ username: null, isAuthenticated: false });
   },
 }));

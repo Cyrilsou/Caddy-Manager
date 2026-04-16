@@ -11,6 +11,11 @@
 #
 # The panel runs behind nginx (no Caddy for the UI).
 # Caddy still runs for managed domains (reverse proxy for your apps).
+#
+# SECURITY: Caddy admin API binds to localhost:2019 only.
+# Ensure your firewall blocks port 2019 from external access:
+#   sudo iptables -A INPUT -p tcp --dport 2019 -s 127.0.0.1 -j ACCEPT
+#   sudo iptables -A INPUT -p tcp --dport 2019 -j DROP
 # =============================================================================
 
 services:

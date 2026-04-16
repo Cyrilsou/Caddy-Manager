@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select, func, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.security.rbac import require_permission
 from app.database import get_db
 from app.models.audit_log import AuditLog
 from app.models.user import User
@@ -19,7 +19,7 @@ async def list_audit_logs(
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_permission("audit.read")),
 ):
     query = select(AuditLog)
     count_query = select(func.count()).select_from(AuditLog)

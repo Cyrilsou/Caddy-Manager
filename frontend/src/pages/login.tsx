@@ -22,8 +22,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await loginApi(username, password);
-      storeLogin(res.data.access_token, res.data.refresh_token, username);
+      await loginApi(username, password);
+      storeLogin(username);
       navigate("/dashboard");
     } catch (err: unknown) {
       const axiosErr = err as { response?: { status?: number; data?: { detail?: string } } };

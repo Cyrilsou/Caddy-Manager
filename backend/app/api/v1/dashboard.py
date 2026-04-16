@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy import select, func, case, literal_column
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
+from app.security.rbac import require_permission
 from app.config import settings
 from app.database import get_db
 from app.models.backend_server import BackendServer
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 
 @router.get("/stats", response_model=DashboardStats)
-async def get_stats(db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def get_stats(db: AsyncSession = Depends(get_db), _: User = Depends(require_permission("domain.read"))):
     # Single aggregated query for domains
     domain_stats = (await db.execute(
         select(

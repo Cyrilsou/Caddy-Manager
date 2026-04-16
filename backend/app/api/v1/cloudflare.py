@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
+from app.security.rbac import require_permission
 from app.schemas.cloudflare import (
     DNSRecordCreate,
     DNSRecordUpdate,
@@ -23,14 +23,14 @@ def _get_cf_service() -> CloudflareService:
 
 
 @router.get("/verify")
-async def verify_token(_: User = Depends(get_current_user)):
+async def verify_token(_: User = Depends(require_permission("cloudflare.read"))):
     cf = _get_cf_service()
     valid = await cf.verify_token()
     return {"valid": valid, "message": "Token is active" if valid else "Token is invalid or expired"}
 
 
 @router.get("/zones")
-async def list_zones(_: User = Depends(get_current_user)):
+async def list_zones(_: User = Depends(require_permission("cloudflare.read"))):
     cf = _get_cf_service()
     try:
         zones = await cf.list_zones()
@@ -49,7 +49,7 @@ async def list_zones(_: User = Depends(get_current_user)):
 
 
 @router.get("/zones/{zone_id}/dns")
-async def list_dns_records(zone_id: str, _: User = Depends(get_current_user)):
+async def list_dns_records(zone_id: str, _: User = Depends(require_permission("cloudflare.read"))):
     cf = _get_cf_service()
     try:
         records = await cf.list_dns_records(zone_id)
@@ -69,7 +69,7 @@ async def list_dns_records(zone_id: str, _: User = Depends(get_current_user)):
 
 
 @router.post("/dns", status_code=201)
-async def create_dns_record(data: DNSRecordCreate, _: User = Depends(get_current_user)):
+async def create_dns_record(data: DNSRecordCreate, _: User = Depends(require_permission("cloudflare.write"))):
     cf = _get_cf_service()
     try:
         result = await cf.create_dns_record(
@@ -81,7 +81,7 @@ async def create_dns_record(data: DNSRecordCreate, _: User = Depends(get_current
 
 
 @router.put("/dns")
-async def update_dns_record(data: DNSRecordUpdate, _: User = Depends(get_current_user)):
+async def update_dns_record(data: DNSRecordUpdate, _: User = Depends(require_permission("cloudflare.write"))):
     cf = _get_cf_service()
     try:
         result = await cf.update_dns_record(
@@ -94,7 +94,7 @@ async def update_dns_record(data: DNSRecordUpdate, _: User = Depends(get_current
 
 
 @router.delete("/dns/{zone_id}/{record_id}")
-async def delete_dns_record(zone_id: str, record_id: str, _: User = Depends(get_current_user)):
+async def delete_dns_record(zone_id: str, record_id: str, _: User = Depends(require_permission("cloudflare.write"))):
     cf = _get_cf_service()
     try:
         return await cf.delete_dns_record(zone_id, record_id)
@@ -103,7 +103,7 @@ async def delete_dns_record(zone_id: str, record_id: str, _: User = Depends(get_
 
 
 @router.post("/dns/toggle-proxy")
-async def toggle_proxy(data: ProxyToggle, _: User = Depends(get_current_user)):
+async def toggle_proxy(data: ProxyToggle, _: User = Depends(require_permission("cloudflare.write"))):
     cf = _get_cf_service()
     try:
         return await cf.toggle_proxy(data.zone_id, data.record_id, data.proxied)
@@ -112,7 +112,7 @@ async def toggle_proxy(data: ProxyToggle, _: User = Depends(get_current_user)):
 
 
 @router.get("/zones/{zone_id}/ssl")
-async def get_ssl_mode(zone_id: str, _: User = Depends(get_current_user)):
+async def get_ssl_mode(zone_id: str, _: User = Depends(require_permission("cloudflare.read"))):
     cf = _get_cf_service()
     try:
         mode = await cf.get_ssl_mode(zone_id)
@@ -122,7 +122,7 @@ async def get_ssl_mode(zone_id: str, _: User = Depends(get_current_user)):
 
 
 @router.patch("/zones/{zone_id}/ssl")
-async def set_ssl_mode(zone_id: str, data: SSLModeUpdate, _: User = Depends(get_current_user)):
+async def set_ssl_mode(zone_id: str, data: SSLModeUpdate, _: User = Depends(require_permission("cloudflare.write"))):
     cf = _get_cf_service()
     try:
         return await cf.set_ssl_mode(zone_id, data.mode)

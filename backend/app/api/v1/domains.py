@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_current_user
 from app.database import get_db
 from app.models.user import User
 from app.schemas.domain import DomainCreate, DomainResponse, DomainUpdate
+from app.security.rbac import require_permission
 from app.services import domain_service
 
 router = APIRouter(prefix="/domains", tags=["domains"])
@@ -17,13 +17,13 @@ async def list_domains(
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require_permission("domain.read")),
 ):
     return await domain_service.list_domains(db, search, is_active, page, per_page)
 
 
 @router.get("/{domain_id}", response_model=DomainResponse)
-async def get_domain(domain_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(get_current_user)):
+async def get_domain(domain_id: int, db: AsyncSession = Depends(get_db), _: User = Depends(require_permission("domain.read"))):
     try:
         d = await domain_service.get_domain(db, domain_id)
         return DomainResponse(
@@ -48,7 +48,7 @@ async def get_domain(domain_id: int, db: AsyncSession = Depends(get_db), _: User
 @router.post("", response_model=DomainResponse, status_code=201)
 async def create_domain(
     data: DomainCreate, request: Request,
-    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db), user: User = Depends(require_permission("domain.create")),
 ):
     try:
         d = await domain_service.create_domain(db, data, user, request)
@@ -73,7 +73,7 @@ async def create_domain(
 @router.put("/{domain_id}", response_model=DomainResponse)
 async def update_domain(
     domain_id: int, data: DomainUpdate, request: Request,
-    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db), user: User = Depends(require_permission("domain.update")),
 ):
     try:
         d = await domain_service.update_domain(db, domain_id, data, user, request)
@@ -99,7 +99,7 @@ async def update_domain(
 @router.delete("/{domain_id}", status_code=204)
 async def delete_domain(
     domain_id: int, request: Request,
-    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db), user: User = Depends(require_permission("domain.delete")),
 ):
     try:
         await domain_service.delete_domain(db, domain_id, user, request)
@@ -110,7 +110,7 @@ async def delete_domain(
 @router.post("/{domain_id}/toggle")
 async def toggle_domain(
     domain_id: int, request: Request,
-    db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db), user: User = Depends(require_permission("domain.update")),
 ):
     try:
         d = await domain_service.toggle_domain(db, domain_id, user, request)

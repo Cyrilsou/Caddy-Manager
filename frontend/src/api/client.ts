@@ -4,15 +4,10 @@ import { useAuthStore } from "@/stores/auth-store";
 const api = axios.create({
   baseURL: "/api/v1",
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,  // Send HttpOnly cookies automatically
 });
 
-api.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().accessToken;
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+// No Bearer header needed — tokens are in HttpOnly cookies
 
 api.interceptors.response.use(
   (response) => response,
@@ -21,22 +16,13 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
-      const refreshToken = useAuthStore.getState().refreshToken;
 
-      if (refreshToken) {
-        try {
-          const res = await axios.post("/api/v1/auth/refresh", {
-            refresh_token: refreshToken,
-          });
-          const { access_token, refresh_token } = res.data;
-          useAuthStore.getState().setTokens(access_token, refresh_token);
-          originalRequest.headers.Authorization = `Bearer ${access_token}`;
-          return api(originalRequest);
-        } catch {
-          useAuthStore.getState().logout();
-          window.location.href = "/login";
-        }
-      } else {
+      try {
+        // Refresh uses the HttpOnly refresh_token cookie automatically
+        await axios.post("/api/v1/auth/refresh", {}, { withCredentials: true });
+        // Retry the original request (new access_token cookie is set)
+        return api(originalRequest);
+      } catch {
         useAuthStore.getState().logout();
         window.location.href = "/login";
       }

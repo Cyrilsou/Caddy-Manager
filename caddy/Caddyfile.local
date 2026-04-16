@@ -1,6 +1,6 @@
 {
 	email {$ACME_EMAIL}
-	admin 0.0.0.0:2019
+	admin localhost:2019
 
 	servers {
 		timeouts {
@@ -15,5 +15,4 @@
 
 # No panel site block — panel is served by the frontend container directly.
 # Caddy only handles managed domains (injected via Admin API).
-# The admin API listens on 0.0.0.0:2019 so the backend container can reach it
-# via host.docker.internal:2019.
+# Admin API on localhost:2019 only — backend reaches it via host.docker.internal.
