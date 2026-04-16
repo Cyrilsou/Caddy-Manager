@@ -15,8 +15,8 @@ class Settings(BaseSettings):
     ENVIRONMENT: str = "production"
     LOG_LEVEL: str = "info"
 
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
-    REFRESH_TOKEN_EXPIRE_MINUTES: int = 1440
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 10
+    REFRESH_TOKEN_EXPIRE_MINUTES: int = 480  # 8 hours
 
     HEALTH_CHECK_INTERVAL_SEC: int = 30
     CERT_CHECK_INTERVAL_HOURS: int = 6

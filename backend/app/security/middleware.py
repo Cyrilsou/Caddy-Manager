@@ -33,6 +33,9 @@ def _is_trusted_proxy(remote_ip: str) -> bool:
     """Check if the direct connection comes from a trusted proxy (Cloudflare or local)."""
     try:
         ip = ipaddress.ip_address(remote_ip)
+        # Handle IPv4-mapped IPv6 (::ffff:1.2.3.4)
+        if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped:
+            ip = ip.ipv4_mapped
     except ValueError:
         return False
     for net in TRUSTED_LOCAL:

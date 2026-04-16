@@ -20,7 +20,7 @@ class BulkDomainEntry(BaseModel):
 
 
 class BulkDomainRequest(BaseModel):
-    domains: list[BulkDomainEntry] = Field(min_length=1, max_length=200)
+    domains: list[BulkDomainEntry] = Field(min_length=1, max_length=50)
 
 
 @router.post("/domains")

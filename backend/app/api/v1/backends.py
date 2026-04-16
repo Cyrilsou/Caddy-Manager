@@ -1,4 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -8,6 +10,7 @@ from app.security.rbac import require_permission
 from app.services import backend_service
 
 router = APIRouter(prefix="/backends", tags=["backends"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 @router.get("", response_model=list[BackendResponse])
@@ -60,7 +63,9 @@ async def delete_backend(
 
 
 @router.post("/{backend_id}/health-check")
+@limiter.limit("10/minute")
 async def health_check(
+    request: Request,
     backend_id: int,
     db: AsyncSession = Depends(get_db), _: User = Depends(require_permission("backend.read")),
 ):

@@ -1,5 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user
@@ -8,6 +10,7 @@ from app.models.user import User
 from app.security.totp import generate_totp_secret, get_totp_uri, generate_qr_base64, verify_totp
 
 router = APIRouter(prefix="/auth/totp", tags=["2fa"])
+limiter = Limiter(key_func=get_remote_address)
 
 
 class TOTPSetupResponse(BaseModel):
@@ -29,7 +32,6 @@ async def setup_totp(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate TOTP secret and QR code. Must be confirmed with /confirm."""
     if user.totp_enabled:
         raise HTTPException(status_code=400, detail="2FA is already enabled")
 
@@ -39,38 +41,40 @@ async def setup_totp(
 
     uri = get_totp_uri(secret, user.username)
     qr = generate_qr_base64(uri)
-
     return TOTPSetupResponse(secret=secret, qr_code=qr, uri=uri)
 
 
 @router.post("/confirm")
+@limiter.limit("5/minute")
 async def confirm_totp(
+    request: Request,
     body: TOTPVerifyRequest,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Verify the first TOTP code to confirm setup."""
     if user.totp_enabled:
         raise HTTPException(status_code=400, detail="2FA is already enabled")
     if not user.totp_secret:
         raise HTTPException(status_code=400, detail="Run /setup first")
 
     if not verify_totp(user.totp_secret, body.code):
-        raise HTTPException(status_code=400, detail="Invalid TOTP code")
+        user.totp_secret = None  # Clear secret on failure to prevent brute force
+        await db.commit()
+        raise HTTPException(status_code=400, detail="Invalid TOTP code, setup reset")
 
     user.totp_enabled = True
     await db.commit()
-
     return {"message": "2FA enabled successfully"}
 
 
 @router.post("/disable")
+@limiter.limit("5/minute")
 async def disable_totp(
+    request: Request,
     body: TOTPDisableRequest,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """Disable 2FA. Requires a valid TOTP code."""
     if not user.totp_enabled:
         raise HTTPException(status_code=400, detail="2FA is not enabled")
 
@@ -80,7 +84,6 @@ async def disable_totp(
     user.totp_enabled = False
     user.totp_secret = None
     await db.commit()
-
     return {"message": "2FA disabled"}
 
 

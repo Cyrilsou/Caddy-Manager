@@ -96,28 +96,30 @@ app = FastAPI(
 _is_local = settings.PANEL_DOMAIN in ("localhost", "127.0.0.1", "")
 
 _allowed_hosts = [settings.PANEL_DOMAIN] if settings.PANEL_DOMAIN else []
-_allowed_hosts.extend(["localhost", "127.0.0.1"])
-if _is_local:
-    _allowed_hosts.append("*")
+if _is_local or settings.ENVIRONMENT == "development":
+    _allowed_hosts.extend(["localhost", "127.0.0.1", "*"])
 
 app.add_middleware(
     TrustedHostMiddleware,
-    allowed_hosts=_allowed_hosts,
+    allowed_hosts=_allowed_hosts if _allowed_hosts else ["*"],
 )
 
 _cors_origins = [
     f"https://{settings.PANEL_DOMAIN}",
     f"http://{settings.PANEL_DOMAIN}",
 ]
-if _is_local or settings.ENVIRONMENT == "development":
+if settings.ENVIRONMENT == "development":
     _cors_origins.extend([
         "http://localhost:5173",
         "http://localhost:3000",
         "http://localhost:8080",
     ])
-if _is_local:
-    # Allow access from any IP on the local network (no domain)
-    _cors_origins.append("*")
+elif _is_local:
+    # Local mode: allow LAN access but not wildcard
+    _cors_origins.extend([
+        "http://localhost:8080",
+        "http://127.0.0.1:8080",
+    ])
 
 app.add_middleware(
     CORSMiddleware,
@@ -139,7 +141,10 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
-    logger.exception("Unhandled exception: %s", exc)
+    if settings.ENVIRONMENT == "development":
+        logger.exception("Unhandled exception: %s", exc)
+    else:
+        logger.error("Unhandled %s on %s %s", type(exc).__name__, request.method, request.url.path)
     return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
 

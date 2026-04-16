@@ -25,7 +25,7 @@ security = HTTPBearer(auto_error=False)
 
 _is_local = settings.PANEL_DOMAIN in ("localhost", "127.0.0.1", "")
 COOKIE_SECURE = not _is_local
-COOKIE_SAMESITE = "lax"
+COOKIE_SAMESITE = "strict"
 COOKIE_DOMAIN = None  # Let the browser infer from the request
 
 

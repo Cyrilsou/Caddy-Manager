@@ -81,8 +81,13 @@ async def update_backend(
         if existing.scalar_one_or_none():
             raise ValueError(f"Backend with name '{update_data['name']}' already exists")
 
+    ALLOWED_FIELDS = {
+        "name", "host", "port", "protocol", "health_check_enabled",
+        "health_check_path", "health_check_interval_sec", "tls_skip_verify", "notes",
+    }
     for key, value in update_data.items():
-        setattr(backend, key, value)
+        if key in ALLOWED_FIELDS:
+            setattr(backend, key, value)
 
     await log_audit(db, user.id, "backend.update", "backend", backend.id,
                     update_data, request)
@@ -108,8 +113,16 @@ async def delete_backend(
     await db.commit()
 
 
+BLOCKED_PORTS = {22, 25, 53, 6379, 5432, 3306, 27017, 11211, 2019}
+
+
 async def check_backend_health(db: AsyncSession, backend_id: int) -> dict:
     backend = await get_backend(db, backend_id)
+
+    # SSRF protection: block probing internal services
+    if backend.port in BLOCKED_PORTS:
+        return {"status": "error", "error": f"Port {backend.port} is blocked for security"}
+
     url = f"{backend.protocol}://{backend.host}:{backend.port}{backend.health_check_path}"
 
     try:

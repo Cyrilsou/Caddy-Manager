@@ -99,8 +99,17 @@ async def update_domain(
         if not backend.scalar_one_or_none():
             raise ValueError(f"Backend with id {update_data['backend_id']} not found")
 
+    ALLOWED_FIELDS = {
+        "hostname", "backend_id", "is_active", "path_prefix", "strip_prefix",
+        "force_https", "enable_websocket", "enable_cors", "custom_headers",
+        "basic_auth", "ip_allowlist", "redirect_url", "redirect_code",
+        "maintenance_mode", "zone_id", "dns_record_id", "proxied", "ssl_mode",
+        "lb_policy", "cache_enabled", "cache_ttl", "cache_stale_ttl",
+        "cache_max_body_bytes", "cache_extensions", "notes", "sort_order",
+    }
     for key, value in update_data.items():
-        setattr(domain, key, value)
+        if key in ALLOWED_FIELDS:
+            setattr(domain, key, value)
 
     await log_audit(db, user.id, "domain.update", "domain", domain.id,
                     update_data, request)

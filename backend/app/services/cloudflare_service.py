@@ -58,10 +58,11 @@ class CloudflareService:
         await self.rate_limiter.acquire()
         client = self._get_client()
         response = await client.request(method, path, **kwargs)
-            data = response.json()
-            if not data.get("success"):
-                raise CloudflareAPIError(data.get("errors", [{"message": "Unknown error"}]))
-            return data
+        data = response.json()
+        if not data.get("success"):
+            logger.warning("Cloudflare API error on %s %s", method, path)
+            raise CloudflareAPIError(data.get("errors", [{"message": "API request failed"}]))
+        return data
 
     async def verify_token(self) -> bool:
         try:
