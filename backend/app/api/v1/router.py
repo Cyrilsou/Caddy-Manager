@@ -1,0 +1,25 @@
+from fastapi import APIRouter
+
+from app.api.v1.auth import router as auth_router
+from app.api.v1.backends import router as backends_router
+from app.api.v1.domains import router as domains_router
+from app.api.v1.config import router as config_router
+from app.api.v1.certificates import router as certificates_router
+from app.api.v1.cloudflare import router as cloudflare_router
+from app.api.v1.dashboard import router as dashboard_router
+from app.api.v1.audit import router as audit_router
+from app.api.v1.settings import router as settings_router
+from app.api.v1.export_import import router as export_router
+
+api_router = APIRouter()
+
+api_router.include_router(auth_router)
+api_router.include_router(backends_router)
+api_router.include_router(domains_router)
+api_router.include_router(config_router)
+api_router.include_router(certificates_router)
+api_router.include_router(cloudflare_router)
+api_router.include_router(dashboard_router)
+api_router.include_router(audit_router)
+api_router.include_router(settings_router)
+api_router.include_router(export_router)
