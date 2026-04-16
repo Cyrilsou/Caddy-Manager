@@ -84,12 +84,14 @@ async def lifespan(app: FastAPI):
     logger.info("Caddy Control Panel stopped")
 
 
+_show_docs = settings.ENVIRONMENT == "development"
 app = FastAPI(
     title="Caddy Control Panel",
+    description="Self-hosted reverse proxy management panel" if _show_docs else None,
     version="1.0.0",
-    docs_url="/api/docs" if settings.ENVIRONMENT == "development" else None,
-    redoc_url=None,
-    openapi_url="/api/openapi.json" if settings.ENVIRONMENT == "development" else None,
+    docs_url="/api/docs" if _show_docs else None,
+    redoc_url="/api/redoc" if _show_docs else None,
+    openapi_url="/api/openapi.json" if _show_docs else None,
     lifespan=lifespan,
 )
 

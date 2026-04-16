@@ -53,10 +53,15 @@ async def _check_backend(client: httpx.AsyncClient, backend: BackendServer):
     backend.health_checked_at = utcnow()
     _previous_status[backend.id] = backend.health_status
 
-    # Alert on status transitions
+    # Alert + broadcast on status transitions
     if old_status != backend.health_status:
         try:
             from app.services.alert_service import alert_backend_down, alert_backend_recovered
+            from app.api.v1.events import broadcast_event
+            broadcast_event("backend_status", {
+                "backend_id": backend.id, "name": backend.name,
+                "status": backend.health_status, "old_status": old_status,
+            })
             if backend.health_status == "unhealthy" and old_status in ("healthy", "unknown"):
                 await alert_backend_down(backend.name, backend.host, backend.port)
             elif backend.health_status == "healthy" and old_status == "unhealthy":

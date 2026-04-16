@@ -11,9 +11,17 @@ const BackendsPage = lazy(() => import("@/pages/backends"));
 const ConfigPage = lazy(() => import("@/pages/config"));
 const CertificatesPage = lazy(() => import("@/pages/certificates"));
 const CloudflarePage = lazy(() => import("@/pages/cloudflare"));
+const CachePage = lazy(() => import("@/pages/cache"));
+const DnsCheckPage = lazy(() => import("@/pages/dns-check"));
+const LogsPage = lazy(() => import("@/pages/logs"));
+const UsersPage = lazy(() => import("@/pages/users"));
+const DockerPage = lazy(() => import("@/pages/docker"));
 const AuditLogPage = lazy(() => import("@/pages/audit-log"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
-const CachePage = lazy(() => import("@/pages/cache"));
+
+const S = ({ children }: { children: React.ReactNode }) => (
+  <Suspense fallback={<PageLoader />}>{children}</Suspense>
+);
 
 export default function App() {
   return (
@@ -21,15 +29,19 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route element={<AppLayout />}>
-          <Route path="/dashboard" element={<Suspense fallback={<PageLoader />}><DashboardPage /></Suspense>} />
-          <Route path="/domains" element={<Suspense fallback={<PageLoader />}><DomainsPage /></Suspense>} />
-          <Route path="/backends" element={<Suspense fallback={<PageLoader />}><BackendsPage /></Suspense>} />
-          <Route path="/config" element={<Suspense fallback={<PageLoader />}><ConfigPage /></Suspense>} />
-          <Route path="/certificates" element={<Suspense fallback={<PageLoader />}><CertificatesPage /></Suspense>} />
-          <Route path="/cloudflare" element={<Suspense fallback={<PageLoader />}><CloudflarePage /></Suspense>} />
-          <Route path="/cache" element={<Suspense fallback={<PageLoader />}><CachePage /></Suspense>} />
-          <Route path="/audit" element={<Suspense fallback={<PageLoader />}><AuditLogPage /></Suspense>} />
-          <Route path="/settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
+          <Route path="/dashboard" element={<S><DashboardPage /></S>} />
+          <Route path="/domains" element={<S><DomainsPage /></S>} />
+          <Route path="/backends" element={<S><BackendsPage /></S>} />
+          <Route path="/config" element={<S><ConfigPage /></S>} />
+          <Route path="/certificates" element={<S><CertificatesPage /></S>} />
+          <Route path="/cloudflare" element={<S><CloudflarePage /></S>} />
+          <Route path="/cache" element={<S><CachePage /></S>} />
+          <Route path="/dns-check" element={<S><DnsCheckPage /></S>} />
+          <Route path="/logs" element={<S><LogsPage /></S>} />
+          <Route path="/users" element={<S><UsersPage /></S>} />
+          <Route path="/docker" element={<S><DockerPage /></S>} />
+          <Route path="/audit" element={<S><AuditLogPage /></S>} />
+          <Route path="/settings" element={<S><SettingsPage /></S>} />
         </Route>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
         <Route path="*" element={<Navigate to="/dashboard" replace />} />

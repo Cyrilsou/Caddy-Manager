@@ -1,12 +1,38 @@
-import { useQuery } from "@tanstack/react-query";
-import { Globe, Server, Shield, Activity } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Globe, Server, Shield, Activity, AlertTriangle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getDashboardStats } from "@/api/dashboard";
 import { listAuditLogs } from "@/api/audit";
 import { formatDate } from "@/lib/utils";
 
+interface ServerEvent {
+  type: string;
+  name?: string;
+  status?: string;
+  old_status?: string;
+  [key: string]: unknown;
+}
+
 export default function DashboardPage() {
+  const queryClient = useQueryClient();
+  const [alerts, setAlerts] = useState<ServerEvent[]>([]);
+
+  // SSE for real-time events
+  useEffect(() => {
+    const es = new EventSource("/api/v1/events/stream", { withCredentials: true });
+    es.onmessage = (event) => {
+      try {
+        const data: ServerEvent = JSON.parse(event.data);
+        if (data.type === "backend_status") {
+          setAlerts((prev) => [data, ...prev].slice(0, 10));
+          queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+        }
+      } catch { /* ignore */ }
+    };
+    return () => es.close();
+  }, [queryClient]);
   const { data: stats } = useQuery({
     queryKey: ["dashboard-stats"],
     queryFn: () => getDashboardStats().then((r) => r.data),
@@ -22,6 +48,19 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <h1 className="text-3xl font-bold">Dashboard</h1>
+
+      {alerts.length > 0 && (
+        <div className="space-y-2">
+          {alerts.map((a, i) => (
+            <div key={i} className={`flex items-center gap-2 rounded-md p-3 text-sm ${
+              a.status === "unhealthy" ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"
+            }`}>
+              <AlertTriangle className="h-4 w-4" />
+              <span><strong>{a.name}</strong> is now <strong>{a.status}</strong> (was {a.old_status})</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
