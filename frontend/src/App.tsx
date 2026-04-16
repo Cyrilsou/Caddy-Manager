@@ -13,6 +13,7 @@ const CertificatesPage = lazy(() => import("@/pages/certificates"));
 const CloudflarePage = lazy(() => import("@/pages/cloudflare"));
 const AuditLogPage = lazy(() => import("@/pages/audit-log"));
 const SettingsPage = lazy(() => import("@/pages/settings"));
+const CachePage = lazy(() => import("@/pages/cache"));
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
           <Route path="/config" element={<Suspense fallback={<PageLoader />}><ConfigPage /></Suspense>} />
           <Route path="/certificates" element={<Suspense fallback={<PageLoader />}><CertificatesPage /></Suspense>} />
           <Route path="/cloudflare" element={<Suspense fallback={<PageLoader />}><CloudflarePage /></Suspense>} />
+          <Route path="/cache" element={<Suspense fallback={<PageLoader />}><CachePage /></Suspense>} />
           <Route path="/audit" element={<Suspense fallback={<PageLoader />}><AuditLogPage /></Suspense>} />
           <Route path="/settings" element={<Suspense fallback={<PageLoader />}><SettingsPage /></Suspense>} />
         </Route>

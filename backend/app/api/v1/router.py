@@ -15,6 +15,7 @@ from app.api.v1.dns import router as dns_router
 from app.api.v1.logs import router as logs_router
 from app.api.v1.templates import router as templates_router
 from app.api.v1.bulk import router as bulk_router
+from app.api.v1.cache import router as cache_router
 
 api_router = APIRouter()
 
@@ -33,3 +34,4 @@ api_router.include_router(dns_router)
 api_router.include_router(logs_router)
 api_router.include_router(templates_router)
 api_router.include_router(bulk_router)
+api_router.include_router(cache_router)

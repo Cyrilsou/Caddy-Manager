@@ -14,6 +14,7 @@ import {
   X,
   Sun,
   Moon,
+  Gauge,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
@@ -26,6 +27,7 @@ const navItems = [
   { to: "/config", label: "Configuration", icon: FileCode },
   { to: "/certificates", label: "Certificates", icon: Shield },
   { to: "/cloudflare", label: "Cloudflare", icon: Cloud },
+  { to: "/cache", label: "Cache CDN", icon: Gauge },
   { to: "/audit", label: "Audit Log", icon: ScrollText },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
