@@ -29,6 +29,7 @@ services:
     volumes:
       - caddy_data:/data
       - caddy_config:/config
+      - caddy_cache:/var/cache/caddy
     environment:
       - CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN:-}
       - ACME_EMAIL=${ACME_EMAIL:-}
@@ -188,4 +189,5 @@ networks:
 volumes:
   caddy_data:
   caddy_config:
+  caddy_cache:
   postgres_data:

@@ -32,6 +32,13 @@ class Domain(Base):
     proxied: Mapped[bool] = mapped_column(Boolean, default=True)
     ssl_mode: Mapped[str] = mapped_column(String(20), default="full")
     lb_policy: Mapped[str] = mapped_column(String(20), default="")  # "", "round_robin", "least_conn", "first", "ip_hash"
+    cache_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    cache_ttl: Mapped[int] = mapped_column(Integer, default=3600)  # seconds
+    cache_stale_ttl: Mapped[int] = mapped_column(Integer, default=86400)
+    cache_max_body_bytes: Mapped[int] = mapped_column(Integer, default=50_000_000)  # 50MB
+    cache_extensions: Mapped[str] = mapped_column(
+        Text, default=".js,.css,.png,.jpg,.jpeg,.gif,.svg,.woff,.woff2,.ttf,.eot,.ico,.webp,.avif"
+    )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)

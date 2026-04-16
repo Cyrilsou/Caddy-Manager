@@ -7,6 +7,7 @@ from app.database import get_db
 from app.models.user import User
 from app.security.rbac import require_permission
 from app.services.cloudflare_cache_service import CloudflareCacheService
+from app.services.local_cache_service import LocalCacheService
 from app.services.speedtest_service import run_speed_test, recommend_cache_settings
 
 router = APIRouter(prefix="/cache", tags=["cache"])
@@ -196,3 +197,84 @@ async def cache_analytics(
         return await svc.get_cache_analytics(zone_id)
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e))
+
+
+# =============================================================================
+# LOCAL CDN CACHE (Souin — used when Cloudflare is not configured)
+# =============================================================================
+
+def _get_local_cache() -> LocalCacheService:
+    return LocalCacheService()
+
+
+@router.get("/local/stats")
+async def local_cache_stats(_: User = Depends(require_permission("settings.read"))):
+    """Get local Caddy cache statistics."""
+    return await _get_local_cache().get_stats()
+
+
+@router.post("/local/purge/all")
+async def local_purge_all(_: User = Depends(require_permission("cloudflare.write"))):
+    """Purge entire local Caddy cache."""
+    success = await _get_local_cache().purge_all()
+    if not success:
+        raise HTTPException(status_code=502, detail="Failed to purge local cache (cache may not be active)")
+    return {"message": "Local cache purged"}
+
+
+class LocalPurgeDomainRequest(BaseModel):
+    hostname: str = Field(min_length=1, max_length=253)
+
+
+@router.post("/local/purge/domain")
+async def local_purge_domain(
+    data: LocalPurgeDomainRequest,
+    _: User = Depends(require_permission("cloudflare.write")),
+):
+    """Purge local cache for a specific domain."""
+    success = await _get_local_cache().purge_by_domain(data.hostname)
+    if not success:
+        raise HTTPException(status_code=502, detail=f"Failed to purge cache for {data.hostname}")
+    return {"message": f"Cache purged for {data.hostname}"}
+
+
+class LocalPurgeUrlRequest(BaseModel):
+    url: str = Field(min_length=1)
+
+
+@router.post("/local/purge/url")
+async def local_purge_url(
+    data: LocalPurgeUrlRequest,
+    _: User = Depends(require_permission("cloudflare.write")),
+):
+    """Purge a specific URL from local cache."""
+    success = await _get_local_cache().purge_by_url(data.url)
+    if not success:
+        raise HTTPException(status_code=502, detail=f"Failed to purge URL")
+    return {"message": f"URL purged from cache"}
+
+
+@router.get("/local/entries/{hostname}")
+async def local_cache_entries(
+    hostname: str,
+    _: User = Depends(require_permission("settings.read")),
+):
+    """List cached entries for a specific domain."""
+    entries = await _get_local_cache().get_entries_by_domain(hostname)
+    return {"hostname": hostname, "entries": entries, "count": len(entries)}
+
+
+@router.get("/status")
+async def cache_status(_: User = Depends(require_permission("settings.read"))):
+    """Check which cache system is active (Cloudflare CDN or Local CDN)."""
+    has_cf = bool(settings.CLOUDFLARE_API_TOKEN)
+    local_stats = await _get_local_cache().get_stats()
+    local_active = "error" not in local_stats
+
+    return {
+        "cloudflare_cdn": has_cf,
+        "local_cdn": local_active and not has_cf,
+        "local_cdn_available": local_active,
+        "active": "cloudflare" if has_cf else ("local" if local_active else "none"),
+        "local_entries": local_stats.get("total_entries", 0),
+    }

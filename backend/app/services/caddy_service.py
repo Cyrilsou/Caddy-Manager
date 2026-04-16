@@ -161,6 +161,27 @@ class CaddyService:
                 },
             }
 
+        # Local CDN cache (Souin) — enabled when any domain has cache_enabled
+        cache_domains = [d for d in domains if getattr(d, "cache_enabled", False) and d.backend]
+        if cache_domains:
+            config["apps"]["cache"] = {
+                "api": {
+                    "basepath": "/souin-api",
+                    "souin": {},
+                },
+                "default_cache": {
+                    "ttl": "3600s",
+                    "stale": "86400s",
+                    "default_cache_control": "public",
+                    "max_cacheable_body_bytes": 50_000_000,
+                    "allowed_http_verbs": ["GET", "HEAD"],
+                },
+                "log_level": "WARN",
+                "storers": [
+                    {"nuts": {"path": "/var/cache/caddy/nuts"}},
+                ],
+            }
+
         return config
 
     def _build_route(self, domain: Domain, backend: BackendServer, extra_upstreams: list | None = None) -> dict:
@@ -306,6 +327,23 @@ class CaddyService:
             upstream_config["transport"]["keepalive"] = {
                 "max_idle_conns_per_host": 32,
             }
+
+        # Local CDN cache handler (Souin) — inserted before reverse_proxy
+        if getattr(domain, "cache_enabled", False):
+            cache_handler: dict = {
+                "handler": "cache",
+                "ttl": f"{domain.cache_ttl}s",
+                "stale": f"{domain.cache_stale_ttl}s",
+                "max_cacheable_body_bytes": domain.cache_max_body_bytes,
+                "default_cache_control": f"public, max-age={domain.cache_ttl}",
+            }
+            extensions = [e.strip() for e in (domain.cache_extensions or "").split(",") if e.strip()]
+            if extensions:
+                ext_pattern = "|".join(e.replace(".", r"\.") for e in extensions)
+                cache_handler["regex"] = {
+                    "exclude": f"^(?!.*({ext_pattern})$).*$",
+                }
+            handlers.append(cache_handler)
 
         handlers.append(upstream_config)
 
