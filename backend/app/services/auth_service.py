@@ -26,6 +26,7 @@ async def authenticate_user(
     password: str,
     fail2ban: RedisFail2Ban | None,
     request: Request | None = None,
+    totp_code: str | None = None,
 ) -> dict:
     from app.security.middleware import get_client_ip
 
@@ -61,6 +62,16 @@ async def authenticate_user(
         await log_audit(db, None, "auth.login_failed", details={"username": username}, request=request)
         await db.commit()
         raise ValueError("Invalid credentials")
+
+    # TOTP verification if enabled
+    if user.totp_enabled:
+        if not totp_code:
+            raise ValueError("TOTP code required")
+        from app.security.totp import verify_totp
+        if not verify_totp(user.totp_secret, totp_code):
+            user.failed_login_count += 1
+            await db.commit()
+            raise ValueError("Invalid TOTP code")
 
     user.failed_login_count = 0
     user.locked_until = None

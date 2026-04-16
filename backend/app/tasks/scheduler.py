@@ -12,6 +12,8 @@ def start_scheduler() -> AsyncIOScheduler:
 
     from app.tasks.health_checker import run_health_checks
     from app.tasks.cert_checker import run_cert_checks
+    from app.tasks.backup import run_backup
+    from app.core.metrics import update_business_metrics
 
     scheduler.add_job(
         run_health_checks,
@@ -29,7 +31,24 @@ def start_scheduler() -> AsyncIOScheduler:
         replace_existing=True,
     )
 
+    scheduler.add_job(
+        update_business_metrics,
+        "interval",
+        seconds=60,
+        id="metrics_update",
+        replace_existing=True,
+    )
+
+    scheduler.add_job(
+        run_backup,
+        "cron",
+        hour=3,
+        minute=0,
+        id="daily_backup",
+        replace_existing=True,
+    )
+
     scheduler.start()
-    logger.info("Scheduler started: health checks every %ds, cert checks every %dh",
+    logger.info("Scheduler started: health %ds, certs %dh, metrics 60s, backup daily 03:00",
                 settings.HEALTH_CHECK_INTERVAL_SEC, settings.CERT_CHECK_INTERVAL_HOURS)
     return scheduler

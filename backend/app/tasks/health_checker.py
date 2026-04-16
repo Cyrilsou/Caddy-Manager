@@ -11,6 +11,9 @@ from app.models.user import utcnow
 
 logger = logging.getLogger(__name__)
 
+# Track previous status to only alert on transitions
+_previous_status: dict[int, str] = {}
+
 
 async def run_health_checks():
     try:
@@ -30,7 +33,9 @@ async def run_health_checks():
 
 
 async def _check_backend(client: httpx.AsyncClient, backend: BackendServer):
+    old_status = _previous_status.get(backend.id, backend.health_status)
     url = f"{backend.protocol}://{backend.host}:{backend.port}{backend.health_check_path}"
+
     try:
         start = time.monotonic()
         response = await client.get(url)
@@ -46,3 +51,15 @@ async def _check_backend(client: httpx.AsyncClient, backend: BackendServer):
         backend.health_response_time_ms = None
 
     backend.health_checked_at = utcnow()
+    _previous_status[backend.id] = backend.health_status
+
+    # Alert on status transitions
+    if old_status != backend.health_status:
+        try:
+            from app.services.alert_service import alert_backend_down, alert_backend_recovered
+            if backend.health_status == "unhealthy" and old_status in ("healthy", "unknown"):
+                await alert_backend_down(backend.name, backend.host, backend.port)
+            elif backend.health_status == "healthy" and old_status == "unhealthy":
+                await alert_backend_recovered(backend.name, backend.host, backend.port)
+        except Exception:
+            logger.exception("Failed to send health alert for %s", backend.name)

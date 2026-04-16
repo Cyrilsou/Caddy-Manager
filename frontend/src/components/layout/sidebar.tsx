@@ -12,9 +12,12 @@ import {
   LogOut,
   Menu,
   X,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth-store";
+import { useUIStore } from "@/stores/ui-store";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -31,6 +34,7 @@ export function Sidebar() {
   const location = useLocation();
   const logout = useAuthStore((s) => s.logout);
   const username = useAuthStore((s) => s.username);
+  const { theme, toggleTheme } = useUIStore();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const sidebarContent = (
@@ -65,7 +69,13 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="border-t p-4">
+      <div className="border-t p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Theme</span>
+          <button onClick={toggleTheme} className="text-muted-foreground hover:text-foreground" aria-label="Toggle theme">
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </button>
+        </div>
         <div className="flex items-center justify-between">
           <span className="text-sm text-muted-foreground">{username}</span>
           <button

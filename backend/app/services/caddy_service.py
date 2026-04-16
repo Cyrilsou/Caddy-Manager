@@ -93,13 +93,29 @@ class CaddyService:
         routes = []
         all_hostnames = []
 
+        # Load additional upstreams for load balancing
+        from app.models.domain_upstream import DomainUpstream
+        upstream_result = await db.execute(select(DomainUpstream))
+        all_upstreams = upstream_result.scalars().all()
+
+        # Pre-resolve all backend IDs to host:port
+        backend_result = await db.execute(select(BackendServer))
+        all_backends = {b.id: b for b in backend_result.scalars().all()}
+
+        extra_map: dict[int, list[BackendServer]] = {}
+        for u in all_upstreams:
+            b = all_backends.get(u.backend_id)
+            if b:
+                extra_map.setdefault(u.domain_id, []).append(b)
+
         for domain in domains:
             backend = domain.backend
             if not backend:
                 continue
 
+            extra_backends = extra_map.get(domain.id, [])
             all_hostnames.append(domain.hostname)
-            route = self._build_route(domain, backend)
+            route = self._build_route(domain, backend, extra_backends)
             routes.append(route)
 
         config = {
@@ -147,12 +163,26 @@ class CaddyService:
 
         return config
 
-    def _build_route(self, domain: Domain, backend: BackendServer) -> dict:
+    def _build_route(self, domain: Domain, backend: BackendServer, extra_upstreams: list | None = None) -> dict:
         match_config: dict = {"host": [domain.hostname]}
         if domain.path_prefix and domain.path_prefix != "/":
             match_config["path"] = [f"{domain.path_prefix}*"]
 
         handlers = []
+
+        # Redirect rule (takes priority over everything)
+        if domain.redirect_url and domain.redirect_code in (301, 302):
+            handlers.append({
+                "handler": "static_response",
+                "status_code": str(domain.redirect_code),
+                "headers": {"Location": [domain.redirect_url]},
+            })
+            return {
+                "@id": f"domain-{domain.id}",
+                "match": [match_config],
+                "handle": handlers,
+                "terminal": True,
+            }
 
         if domain.maintenance_mode:
             handlers.append({
@@ -186,6 +216,26 @@ class CaddyService:
                     ],
                 })
 
+        # Basic authentication
+        if domain.basic_auth:
+            # Format: "user:hashed_password" (bcrypt hash)
+            try:
+                parts = domain.basic_auth.strip().split(":", 1)
+                if len(parts) == 2:
+                    handlers.append({
+                        "handler": "authentication",
+                        "providers": {
+                            "http_basic": {
+                                "accounts": [{
+                                    "username": parts[0],
+                                    "password": parts[1],
+                                }],
+                            },
+                        },
+                    })
+            except Exception:
+                pass
+
         if domain.strip_prefix and domain.path_prefix != "/":
             handlers.append({
                 "handler": "rewrite",
@@ -210,11 +260,20 @@ class CaddyService:
             if backend.tls_skip_verify:
                 transport["tls"]["insecure_skip_verify"] = True
 
+        # Build upstream list (primary + additional for load balancing)
+        upstreams = [{"dial": f"{backend.host}:{backend.port}"}]
+        if extra_upstreams:
+            for extra_b in extra_upstreams:
+                upstreams.append({"dial": f"{extra_b.host}:{extra_b.port}"})
+
         upstream_config: dict = {
             "handler": "reverse_proxy",
-            "upstreams": [{"dial": f"{backend.host}:{backend.port}"}],
+            "upstreams": upstreams,
             "transport": transport,
         }
+
+        if domain.lb_policy and len(upstreams) > 1:
+            upstream_config["load_balancing"] = {"selection_policy": {"policy": domain.lb_policy}}
 
         upstream_config["headers"] = {
             "request": {

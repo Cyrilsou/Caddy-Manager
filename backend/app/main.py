@@ -126,7 +126,10 @@ app.add_middleware(
     allow_headers=["Authorization", "Content-Type"],
     allow_credentials=True,
 )
+from app.core.metrics import PrometheusMiddleware, metrics_response
+
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(PrometheusMiddleware)
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(IPAllowlistMiddleware, allowed_ips=settings.ALLOWED_IPS)
 app.add_middleware(RequestSizeLimitMiddleware)
@@ -143,6 +146,11 @@ async def global_exception_handler(request: Request, exc: Exception):
 from app.api.v1.router import api_router  # noqa: E402
 
 app.include_router(api_router, prefix="/api/v1")
+
+
+@app.get("/metrics")
+async def prometheus_metrics():
+    return metrics_response()
 
 
 @app.get("/api/health")

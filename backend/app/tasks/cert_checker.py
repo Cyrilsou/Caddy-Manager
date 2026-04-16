@@ -93,12 +93,25 @@ async def _update_cert(session, domain: Domain, cert_data: dict):
         now = datetime.now(timezone.utc)
         warning_threshold = now + timedelta(days=settings.CERT_EXPIRY_WARNING_DAYS)
 
+        old_status = cert.status
         if cert_data["not_after"] < now:
             cert.status = "expired"
         elif cert_data["not_after"] < warning_threshold:
             cert.status = "expiring_soon"
         else:
             cert.status = "valid"
+
+        # Alert on status transitions to expiring/expired
+        if cert.status != old_status and cert.status in ("expiring_soon", "expired"):
+            try:
+                from app.services.alert_service import alert_cert_expiring, alert_cert_expired
+                if cert.status == "expired":
+                    await alert_cert_expired(domain.hostname)
+                else:
+                    days_left = (cert_data["not_after"] - now).days
+                    await alert_cert_expiring(domain.hostname, days_left)
+            except Exception:
+                logger.exception("Failed to send cert alert for %s", domain.hostname)
     else:
         cert.status = "error"
         cert.error_message = cert_data["error"]

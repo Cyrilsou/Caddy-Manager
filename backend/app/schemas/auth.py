@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 class LoginRequest(BaseModel):
     username: str = Field(min_length=1, max_length=50)
     password: str = Field(min_length=1, max_length=128)
+    totp_code: str | None = Field(default=None, min_length=6, max_length=6)
 
 
 class LoginResponse(BaseModel):

@@ -61,10 +61,13 @@ def _clear_token_cookies(response: Response):
 async def login(request: Request, response: Response, body: LoginRequest, db: AsyncSession = Depends(get_db)):
     fail2ban = getattr(request.app.state, "fail2ban", None)
     try:
-        result = await authenticate_user(db, body.username, body.password, fail2ban, request)
+        result = await authenticate_user(db, body.username, body.password, fail2ban, request, body.totp_code)
     except PermissionError as e:
         raise HTTPException(status_code=423, detail=str(e))
-    except ValueError:
+    except ValueError as e:
+        detail = str(e)
+        if "TOTP" in detail:
+            raise HTTPException(status_code=401, detail=detail)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     _set_token_cookies(response, result["access_token"], result["refresh_token"])
