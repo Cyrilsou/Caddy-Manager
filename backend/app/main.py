@@ -93,9 +93,12 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-_allowed_hosts = [settings.PANEL_DOMAIN]
-if settings.ENVIRONMENT == "development":
-    _allowed_hosts.extend(["localhost", "127.0.0.1"])
+_is_local = settings.PANEL_DOMAIN in ("localhost", "127.0.0.1", "")
+
+_allowed_hosts = [settings.PANEL_DOMAIN] if settings.PANEL_DOMAIN else []
+_allowed_hosts.extend(["localhost", "127.0.0.1"])
+if _is_local:
+    _allowed_hosts.append("*")
 
 app.add_middleware(
     TrustedHostMiddleware,
@@ -106,8 +109,15 @@ _cors_origins = [
     f"https://{settings.PANEL_DOMAIN}",
     f"http://{settings.PANEL_DOMAIN}",
 ]
-if settings.ENVIRONMENT == "development":
-    _cors_origins.extend(["http://localhost:5173", "http://localhost:3000"])
+if _is_local or settings.ENVIRONMENT == "development":
+    _cors_origins.extend([
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "http://localhost:8080",
+    ])
+if _is_local:
+    # Allow access from any IP on the local network (no domain)
+    _cors_origins.append("*")
 
 app.add_middleware(
     CORSMiddleware,

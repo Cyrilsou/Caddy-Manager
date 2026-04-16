@@ -68,23 +68,37 @@ SECRET_KEY=<generated-64-char-hex>
 ADMIN_PASSWORD=<strong-password-min-8-chars>
 DB_PASSWORD=<database-password>
 REDIS_PASSWORD=<redis-password>
-PANEL_DOMAIN=panel.yourdomain.com
-ACME_EMAIL=you@example.com
-
-# Optional: Cloudflare DNS management
-CLOUDFLARE_API_TOKEN=<cf-api-token>
-
-# Optional: Restrict panel access by IP
-ALLOWED_IPS=203.0.113.0/24,198.51.100.5/32
 ```
 
-### 2. Deploy
+### 2. Choose your deployment mode
+
+#### Option A — Local mode (no domain, recommended to start)
+
+No domain needed. Panel accessible via `http://<VM-IP>:8080`.
+
+```bash
+docker compose -f docker-compose.local.yml up -d --build
+```
+
+Access: `http://192.168.1.10:8080` (replace with your VM's IP)
+
+#### Option B — Domain mode (HTTPS via Caddy)
+
+Add to `.env`:
+```bash
+PANEL_DOMAIN=panel.yourdomain.com
+ACME_EMAIL=you@example.com
+```
 
 ```bash
 docker compose up -d --build
 ```
 
-This starts 4 containers:
+Access: `https://panel.yourdomain.com`
+
+---
+
+Both modes start these containers:
 - **caddy** — Reverse proxy (host network, ports 80/443)
 - **backend** — FastAPI API server
 - **postgres** — Database
